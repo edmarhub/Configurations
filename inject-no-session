@@ -1,0 +1,130 @@
+#!/usr/bin/python
+
+import socket
+import time
+import threading
+import os
+import subprocess
+import sys
+
+def clearscreen(numlines=100):
+  if os.name == "posix":
+    os.system('clear')
+  elif os.name in ("nt", "dos", "ce"):
+    os.system('CLS')
+  else:
+    print('\n' * numlines)
+
+def init():
+    clearscreen()
+    print (Color.OKGREEN + """
+   ______ _____   ___  ______ ____  _____ 
+  / __/ // / _ | / _ \/ __/ // / / / / _ )
+ _\ \/ _  / __ |/ , _/ _// _  / /_/ / _  |
+/___/_//_/_/ |_/_/|_/___/_//_/\____/____/ v1.2-NS
+""" + Color.ENDC)
+
+    print (Color.BOLD + "Tips:"+ Color.ENDC + Color.OKBLUE + " To run: python3 inject | To cancel: ctrl + z" + Color.ENDC)
+    print ("\n")
+
+
+class Color:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+while True:
+    
+    PAYLOAD = ""
+    IP_ADDRESS = ""
+
+    init();
+    
+    IP_ADDRESS = input(Color.WARNING + "Enter Server IP Address: " + Color.ENDC)
+    
+    try:
+        socket.inet_aton(IP_ADDRESS)
+
+        PAYLOAD = input(Color.WARNING + "Enter Payload " + Color.OKBLUE + "[Leave blank to use viber.com]" + Color.WARNING + ": " + Color.ENDC)
+        PAYLOAD = PAYLOAD or 'viber.com'
+
+        LOCAL_SERVER_ADDRESS = ("127.0.0.1", 7777)
+        REMOTE_SERVER_ADDRESS = (IP_ADDRESS, 7777)
+
+        MSG = "CONNECT "+ IP_ADDRESS +":33627@"+ PAYLOAD +" HTTP/1.0\r\n\r\nPOST https://"+ PAYLOAD +" HTTP/1.0\r\nHost: "+ PAYLOAD +"\r\nX-Online-Host: "+ PAYLOAD +"\r\nX-Forward-Host: "+ PAYLOAD +"\r\n\r\n"
+        
+        print ("")
+
+        try :
+            
+            tosock= socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            fromlisten = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            fromlisten.bind(LOCAL_SERVER_ADDRESS)
+            fromlisten.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            fromlisten.listen(1)
+
+            def uplink(fromsock, tosock):
+                try:
+                    print (Color.OKBLUE + "📤 Uplink started" + Color.ENDC)
+                    while True:
+                        data = fromsock.recv(1024*64)
+                        tosock.send(data)
+                except ConnectionResetError as ere1:
+                    print (Color.FAIL + str(ere1) + Color.ENDC)
+                except BrokenPipeError as bpe1:
+                    print (Color.FAIL + str(bpe1) + Color.ENDC)
+                    try:
+                        sys.exit(0)
+                    except SystemExit:
+                        os._exit(0)
+
+            def downlink(fromsock, tosock):
+                try:
+                    print (Color.WARNING + "📥 Downlink started" + Color.ENDC)
+                    while True:
+                        data = tosock.recv(1024*64)
+                        fromsock.send(data)
+                except ConnectionResetError as ere2:
+                    print (Color.FAIL + str(ere2) + Color.ENDC)
+                except BrokenPipeError as bpe2:
+                    print (Color.FAIL + str(bpe2) + Color.ENDC)
+                    try:
+                        sys.exit(0)
+                    except SystemExit:
+                        os._exit(0)
+
+            def stop(self):
+                self.running = False
+                socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect( (self.hostname, self.port))
+                self.socket.close()
+
+            while True:
+                print ("⌛ Waiting for VPN connection...")
+                fromsock,addr = fromlisten.accept()
+                tosock.connect(REMOTE_SERVER_ADDRESS)
+                print (Color.HEADER + "📨 Connecting to the remote server..." + Color.ENDC)
+                tosock.send(MSG.encode())
+                print (Color.OKGREEN + "🔒 Successfully connected to the remote server" + Color.ENDC)
+                t1 = threading.Thread(target=uplink, args=(fromsock, tosock,))
+                t2 = threading.Thread(target=downlink, args=(fromsock, tosock,))
+                t1.start()
+                t2.start()
+                t1.join()
+                t2.join()
+            
+        except socket.error as se1:
+            print (Color.FAIL +  str(se1) + Color.ENDC)
+            input(Color.OKGREEN + "\nPress ENTER key to try again..." + Color.ENDC)
+            subprocess.run(['/bin/bash', '-O', 'extglob', '-c', 'pkill -9 python'])
+            
+    except socket.error as e:
+        print (Color.FAIL + "IP Address is not valid\n" +  str(e) + Color.ENDC)
+        input(Color.OKGREEN + "Press ENTER key to try again..." + Color.ENDC)
+
+    except KeyboardInterrupt:
+        input(Color.OKGREEN + "\nPress ENTER key to try again..." + Color.ENDC)
